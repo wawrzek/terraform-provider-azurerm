@@ -123,6 +123,8 @@ type ArmClient struct {
 	servicePrincipalsClient graphrbac.ServicePrincipalsClient
 
 	appServicePlansClient web.AppServicePlansClient
+
+	appsClient web.AppsClient
 }
 
 func withRequestLogging() autorest.SendDecorator {
@@ -561,6 +563,12 @@ func (c *Config) getArmClient() (*ArmClient, error) {
 	aspc.Authorizer = auth
 	aspc.Sender = autorest.CreateSender(withRequestLogging())
 	client.appServicePlansClient = aspc
+
+	ac := web.NewAppsClientWithBaseURI(endpoint, c.SubscriptionID)
+	setUserAgent(&ac.Client)
+	ac.Authorizer = auth
+	ac.Sender = autorest.CreateSender(withRequestLogging())
+	client.appsClient = ac
 
 	return &client, nil
 }
