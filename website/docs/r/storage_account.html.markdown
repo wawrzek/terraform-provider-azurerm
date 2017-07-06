@@ -63,6 +63,10 @@ The following arguments are supported:
     Services are enabled for Blob storage, see [here](https://azure.microsoft.com/en-us/documentation/articles/storage-service-encryption/)
     for more information.
 
+* `custom_domain_name` - (Optional) The custom domain name for this storage account.
+
+* `custom_domain_use_indirect_validation` - (Optional) Should verification be performed via a secondary DNS address? Defaults to `false`.
+
 * `tags` - (Optional) A mapping of tags to assign to the resource.
 
 Note that although the Azure API supports setting custom domain names for

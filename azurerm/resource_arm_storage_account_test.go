@@ -84,6 +84,26 @@ func TestAccAzureRMStorageAccount_basic(t *testing.T) {
 	})
 }
 
+func TestAccAzureRMStorageAccount_customDomainName(t *testing.T) {
+	ri := acctest.RandInt()
+	preConfig := testAccAzureRMStorageAccount_customDomainName(ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testCheckAzureRMStorageAccountDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: preConfig,
+				Check: resource.ComposeTestCheckFunc(
+					testCheckAzureRMStorageAccountExists("azurerm_storage_account.testsa"),
+					resource.TestCheckResourceAttr("azurerm_storage_account.testsa", "custom_domain_name", "indirect.azurestorageacctest.hashicorptest.com""),
+				),
+			},
+		},
+	})
+}
+
 func TestAccAzureRMStorageAccount_disappears(t *testing.T) {
 	ri := acctest.RandInt()
 	rs := acctest.RandString(4)
@@ -327,6 +347,28 @@ resource "azurerm_storage_account" "testsa" {
 
     tags {
         environment = "staging"
+    }
+}`, rInt, rString)
+}
+
+func testAccAzureRMStorageAccount_customDomainName(rInt int) string {
+	return fmt.Sprintf(`
+resource "azurerm_resource_group" "testrg" {
+    name = "testAccAzureRMSA-%d"
+    location = "westus"
+}
+
+resource "azurerm_storage_account" "testsa" {
+    name = "tfcustomdomainsa"
+    resource_group_name = "${azurerm_resource_group.testrg.name}"
+
+    location = "westus"
+    account_type = "Standard_LRS"
+		custom_domain_name = "indirect.azurestorageacctest.hashicorptest.com"
+		custom_domain_use_indirect_validation = true
+
+    tags {
+        environment = "production"
     }
 }`, rInt, rString)
 }

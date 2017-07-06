@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/helper/validation"
+	"github.com/jen20/riviera/azure"
 )
 
 // The KeySource of storage.Encryption appears to require this value
@@ -74,6 +75,18 @@ func resourceArmStorageAccount() *schema.Resource {
 					string(storage.Cool),
 					string(storage.Hot),
 				}, true),
+			},
+
+			"custom_domain_name": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+
+			"custom_domain_use_indirect_validation": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
 			},
 
 			"enable_blob_encryption": {
@@ -165,6 +178,9 @@ func resourceArmStorageAccountCreate(d *schema.ResourceData, meta interface{}) e
 	tags := d.Get("tags").(map[string]interface{})
 	enableBlobEncryption := d.Get("enable_blob_encryption").(bool)
 
+	customDomainName := d.Get("custom_domain_name").(string)
+	customDomainIndirectValidation := d.Get("custom_domain_use_indirect_validation").(bool)
+
 	sku := storage.Sku{
 		Name: storage.SkuName(accountType),
 	}
@@ -182,6 +198,10 @@ func resourceArmStorageAccountCreate(d *schema.ResourceData, meta interface{}) e
 					},
 				},
 				KeySource: &storageAccountEncryptionSource,
+			},
+			CustomDomain: &storage.CustomDomain{
+				Name:         azure.String(customDomainName),
+				UseSubDomain: azure.Bool(customDomainIndirectValidation),
 			},
 		},
 	}
@@ -276,6 +296,28 @@ func resourceArmStorageAccountUpdate(d *schema.ResourceData, meta interface{}) e
 		d.SetPartial("account_type")
 	}
 
+	if d.HasChange("custom_domain_name") || d.HasChange("custom_domain_use_indirect_validation") {
+
+		domainName := d.Get("custom_domain_name").(string)
+		domainIndirectValidation := d.Get("custom_domain_use_indirect_validation").(bool)
+
+		opts := storage.AccountUpdateParameters{
+			AccountPropertiesUpdateParameters: &storage.AccountPropertiesUpdateParameters{
+				CustomDomain: &storage.CustomDomain{
+					Name:         azure.String(domainName),
+					UseSubDomain: azure.Bool(domainIndirectValidation),
+				},
+			},
+		}
+		_, err := client.Update(resourceGroupName, storageAccountName, opts)
+		if err != nil {
+			return fmt.Errorf("Error updating Azure Storage Account Custom Domain %q: %s", storageAccountName, err)
+		}
+
+		d.SetPartial("custom_domain_name")
+		d.SetPartial("custom_domain_use_indirect_validation")
+	}
+
 	if d.HasChange("access_tier") {
 		accessTier := d.Get("access_tier").(string)
 
@@ -366,6 +408,11 @@ func resourceArmStorageAccountRead(d *schema.ResourceData, meta interface{}) err
 	d.Set("account_type", resp.Sku.Name)
 	d.Set("primary_location", resp.AccountProperties.PrimaryLocation)
 	d.Set("secondary_location", resp.AccountProperties.SecondaryLocation)
+
+	if resp.AccountProperties.CustomDomain != nil {
+		d.Set("custom_domain_name", resp.AccountProperties.CustomDomain.Name)
+		d.Set("custom_domain_use_indirect_validation", resp.AccountProperties.CustomDomain.UseSubDomain)
+	}
 
 	if resp.AccountProperties.AccessTier != "" {
 		d.Set("access_tier", resp.AccountProperties.AccessTier)
