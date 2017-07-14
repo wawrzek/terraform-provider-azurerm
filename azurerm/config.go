@@ -17,6 +17,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/arm/documentdb"
 	"github.com/Azure/azure-sdk-for-go/arm/eventhub"
 	"github.com/Azure/azure-sdk-for-go/arm/keyvault"
+	"github.com/Azure/azure-sdk-for-go/arm/mysql"
 	"github.com/Azure/azure-sdk-for-go/arm/network"
 	"github.com/Azure/azure-sdk-for-go/arm/redis"
 	"github.com/Azure/azure-sdk-for-go/arm/resources/resources"
@@ -83,6 +84,8 @@ type ArmClient struct {
 	eventHubClient              eventhub.EventHubsClient
 	eventHubConsumerGroupClient eventhub.ConsumerGroupsClient
 	eventHubNamespacesClient    eventhub.NamespacesClient
+
+	mysqlServersClient mysql.ServersClient
 
 	providers           resources.ProvidersClient
 	resourceGroupClient resources.GroupsClient
@@ -291,6 +294,12 @@ func (c *Config) getArmClient() (*ArmClient, error) {
 	ehnc.Authorizer = auth
 	ehnc.Sender = autorest.CreateSender(withRequestLogging())
 	client.eventHubNamespacesClient = ehnc
+
+	msc := mysql.NewServersClientWithBaseURI(endpoint, c.SubscriptionID)
+	setUserAgent(&msc.Client)
+	msc.Authorizer = auth
+	msc.Sender = autorest.CreateSender(withRequestLogging())
+	client.mysqlServersClient = msc
 
 	ifc := network.NewInterfacesClientWithBaseURI(endpoint, c.SubscriptionID)
 	setUserAgent(&ifc.Client)
