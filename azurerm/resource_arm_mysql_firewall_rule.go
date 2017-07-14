@@ -10,11 +10,12 @@ import (
 	"github.com/jen20/riviera/azure"
 )
 
-func resourceArmMySqlDatabase() *schema.Resource {
+func resourceArmMySqlFirewallRule() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceArmMySqlDatabaseCreate,
-		Read:   resourceArmMySqlDatabaseRead,
-		Delete: resourceArmMySqlDatabaseDelete,
+		Create: resourceArmMySqlFirewallRuleCreateUpdate,
+		Read:   resourceArmMySqlFirewallRuleRead,
+		Update: resourceArmMySqlFirewallRuleCreateUpdate,
+		Delete: resourceArmMySqlFirewallRuleDelete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -38,37 +39,34 @@ func resourceArmMySqlDatabase() *schema.Resource {
 				ForceNew: true,
 			},
 
-			"charset": {
+			"start_ip_address": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: true,
 			},
 
-			"collation": {
+			"end_ip_address": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: true,
 			},
 		},
 	}
 }
 
-func resourceArmMySqlDatabaseCreate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*ArmClient).mysqlDatabasesClient
+func resourceArmMySqlFirewallRuleCreateUpdate(d *schema.ResourceData, meta interface{}) error {
+	client := meta.(*ArmClient).mysqlFirewallRulesClient
 
-	log.Printf("[INFO] preparing arguments for AzureRM MySQL Database creation.")
+	log.Printf("[INFO] preparing arguments for AzureRM MySQL Firewall Rule creation.")
 
 	name := d.Get("name").(string)
 	resGroup := d.Get("resource_group_name").(string)
 	serverName := d.Get("server_name").(string)
+	startIPAddress := d.Get("start_ip_address").(string)
+	endIPAddress := d.Get("end_ip_address").(string)
 
-	charset := d.Get("charset").(string)
-	collation := d.Get("collation").(string)
-
-	properties := mysql.Database{
-		DatabaseProperties: &mysql.DatabaseProperties{
-			Charset:   azure.String(charset),
-			Collation: azure.String(collation),
+	properties := mysql.FirewallRule{
+		FirewallRuleProperties: &mysql.FirewallRuleProperties{
+			StartIPAddress: azure.String(startIPAddress),
+			EndIPAddress:   azure.String(endIPAddress),
 		},
 	}
 
@@ -83,16 +81,16 @@ func resourceArmMySqlDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 		return err
 	}
 	if read.ID == nil {
-		return fmt.Errorf("Cannot read MySQL Database %s (resource group %s) ID", name, resGroup)
+		return fmt.Errorf("Cannot read MySQL Firewall Rule %s (resource group %s) ID", name, resGroup)
 	}
 
 	d.SetId(*read.ID)
 
-	return resourceArmMySqlDatabaseRead(d, meta)
+	return resourceArmMySqlFirewallRuleRead(d, meta)
 }
 
-func resourceArmMySqlDatabaseRead(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*ArmClient).mysqlDatabasesClient
+func resourceArmMySqlFirewallRuleRead(d *schema.ResourceData, meta interface{}) error {
+	client := meta.(*ArmClient).mysqlFirewallRulesClient
 
 	id, err := parseAzureResourceID(d.Id())
 	if err != nil {
@@ -100,7 +98,7 @@ func resourceArmMySqlDatabaseRead(d *schema.ResourceData, meta interface{}) erro
 	}
 	resGroup := id.ResourceGroup
 	serverName := id.Path["servers"]
-	name := id.Path["databases"]
+	name := id.Path["firewallRules"]
 
 	resp, err := client.Get(resGroup, serverName, name)
 	if err != nil {
@@ -108,20 +106,20 @@ func resourceArmMySqlDatabaseRead(d *schema.ResourceData, meta interface{}) erro
 			d.SetId("")
 			return nil
 		}
-		return fmt.Errorf("Error making Read request on Azure MySQL Database %s: %+v", name, err)
+		return fmt.Errorf("Error making Read request on Azure MySQL Firewall Rule %s: %+v", name, err)
 	}
 
 	d.Set("name", resp.Name)
 	d.Set("resource_group_name", resGroup)
 	d.Set("server_name", serverName)
-	d.Set("charset", resp.Charset)
-	d.Set("collation", resp.Collation)
+	d.Set("start_ip_address", resp.StartIPAddress)
+	d.Set("end_ip_address", resp.EndIPAddress)
 
 	return nil
 }
 
-func resourceArmMySqlDatabaseDelete(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*ArmClient).mysqlDatabasesClient
+func resourceArmMySqlFirewallRuleDelete(d *schema.ResourceData, meta interface{}) error {
+	client := meta.(*ArmClient).mysqlFirewallRulesClient
 
 	id, err := parseAzureResourceID(d.Id())
 	if err != nil {
@@ -129,7 +127,7 @@ func resourceArmMySqlDatabaseDelete(d *schema.ResourceData, meta interface{}) er
 	}
 	resGroup := id.ResourceGroup
 	serverName := id.Path["servers"]
-	name := id.Path["databases"]
+	name := id.Path["firewallRules"]
 
 	_, error := client.Delete(resGroup, serverName, name, make(chan struct{}))
 	err = <-error

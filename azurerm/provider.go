@@ -97,6 +97,7 @@ func Provider() terraform.ResourceProvider {
 			"azurerm_key_vault":                 resourceArmKeyVault(),
 			"azurerm_local_network_gateway":     resourceArmLocalNetworkGateway(),
 			"azurerm_mysql_database":            resourceArmMySqlDatabase(),
+			"azurerm_mysql_firewall_rule":       resourceArmMySqlFirewallRule(),
 			"azurerm_mysql_server":              resourceArmMySqlServer(),
 			"azurerm_network_interface":         resourceArmNetworkInterface(),
 			"azurerm_network_security_group":    resourceArmNetworkSecurityGroup(),

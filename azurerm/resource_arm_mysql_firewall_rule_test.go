@@ -10,27 +10,27 @@ import (
 	"github.com/hashicorp/terraform/terraform"
 )
 
-func TestAccAzureRMMySQLDatabase_basic(t *testing.T) {
-	resourceName := "azurerm_mysql_database.test"
+func TestAccAzureRMMySQLFirewallRule_basic(t *testing.T) {
+	resourceName := "azurerm_mysql_firewall_rule.test"
 	ri := acctest.RandInt()
-	config := testAccAzureRMMySQLDatabase_basic(ri)
+	config := testAccAzureRMMySQLFirewallRule_basic(ri)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
-		CheckDestroy: testCheckAzureRMMySQLDatabaseDestroy,
+		CheckDestroy: testCheckAzureRMMySQLFirewallRuleDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMMySQLDatabaseExists(resourceName),
+					testCheckAzureRMMySQLFirewallRuleExists(resourceName),
 				),
 			},
 		},
 	})
 }
 
-func testCheckAzureRMMySQLDatabaseExists(name string) resource.TestCheckFunc {
+func testCheckAzureRMMySQLFirewallRuleExists(name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		// Ensure we have enough information in state to look up in API
 		rs, ok := s.RootModule().Resources[name]
@@ -42,29 +42,29 @@ func testCheckAzureRMMySQLDatabaseExists(name string) resource.TestCheckFunc {
 		serverName := rs.Primary.Attributes["server_name"]
 		resourceGroup, hasResourceGroup := rs.Primary.Attributes["resource_group_name"]
 		if !hasResourceGroup {
-			return fmt.Errorf("Bad: no resource group found in state for MySQL Database: %s", name)
+			return fmt.Errorf("Bad: no resource group found in state for MySQL Firewall Rule: %s", name)
 		}
 
-		client := testAccProvider.Meta().(*ArmClient).mysqlDatabasesClient
+		client := testAccProvider.Meta().(*ArmClient).mysqlFirewallRulesClient
 
 		resp, err := client.Get(resourceGroup, serverName, name)
 		if err != nil {
-			return fmt.Errorf("Bad: Get on mysqlDatabasesClient: %s", err)
+			return fmt.Errorf("Bad: Get on mysqlFirewallRulesClient: %s", err)
 		}
 
 		if resp.StatusCode == http.StatusNotFound {
-			return fmt.Errorf("Bad: MySQL Database %q (server %q resource group: %q) does not exist", name, serverName, resourceGroup)
+			return fmt.Errorf("Bad: MySQL Firewall Rule %q (server %q resource group: %q) does not exist", name, serverName, resourceGroup)
 		}
 
 		return nil
 	}
 }
 
-func testCheckAzureRMMySQLDatabaseDestroy(s *terraform.State) error {
+func testCheckAzureRMMySQLFirewallRuleDestroy(s *terraform.State) error {
 	client := testAccProvider.Meta().(*ArmClient).mysqlDatabasesClient
 
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "azurerm_mysql_database" {
+		if rs.Type != "azurerm_mysql_firewall_rule" {
 			continue
 		}
 
@@ -79,21 +79,22 @@ func testCheckAzureRMMySQLDatabaseDestroy(s *terraform.State) error {
 		}
 
 		if resp.StatusCode != http.StatusNotFound {
-			return fmt.Errorf("MySQL Database still exists:\n%#v", resp)
+			return fmt.Errorf("MySQL Firewall Rule still exists:\n%#v", resp)
 		}
 	}
 
 	return nil
 }
 
-func testAccAzureRMMySQLDatabase_basic(rInt int) string {
+func testAccAzureRMMySQLFirewallRule_basic(rInt int) string {
 	return fmt.Sprintf(`
 resource "azurerm_resource_group" "test" {
     name = "acctestRG-%d"
     location = "West US"
 }
+
 resource "azurerm_mysql_server" "test" {
-  name = "acctestpsqlsvr-%d"
+  name = "acctestmysqlsvr-%d"
   location = "${azurerm_resource_group.test.location}"
   resource_group_name = "${azurerm_resource_group.test.name}"
 
@@ -110,12 +111,12 @@ resource "azurerm_mysql_server" "test" {
   ssl_enforcement = "Enabled"
 }
 
-resource "azurerm_mysql_database" "test" {
-  name                = "acctestdb_%d"
+resource "azurerm_mysql_firewall_rule" "test" {
+  name                = "acctestfwrule-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   server_name         = "${azurerm_mysql_server.test.name}"
-  charset             = "UTF8"
-  collation           = "English_United States.1252"
+  start_ip_address    = "0.0.0.0"
+  end_ip_address      = "255.255.255.255"
 }
 `, rInt, rInt, rInt)
 }

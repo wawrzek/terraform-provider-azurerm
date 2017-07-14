@@ -85,8 +85,9 @@ type ArmClient struct {
 	eventHubConsumerGroupClient eventhub.ConsumerGroupsClient
 	eventHubNamespacesClient    eventhub.NamespacesClient
 
-	mysqlDatabasesClient mysql.DatabasesClient
-	mysqlServersClient mysql.ServersClient
+	mysqlDatabasesClient     mysql.DatabasesClient
+	mysqlFirewallRulesClient mysql.FirewallRulesClient
+	mysqlServersClient       mysql.ServersClient
 
 	providers           resources.ProvidersClient
 	resourceGroupClient resources.GroupsClient
@@ -301,6 +302,12 @@ func (c *Config) getArmClient() (*ArmClient, error) {
 	mdc.Authorizer = auth
 	mdc.Sender = autorest.CreateSender(withRequestLogging())
 	client.mysqlDatabasesClient = mdc
+
+	mfrc := mysql.NewFirewallRulesClientWithBaseURI(endpoint, c.SubscriptionID)
+	setUserAgent(&mfrc.Client)
+	mfrc.Authorizer = auth
+	mfrc.Sender = autorest.CreateSender(withRequestLogging())
+	client.mysqlFirewallRulesClient = mfrc
 
 	msc := mysql.NewServersClientWithBaseURI(endpoint, c.SubscriptionID)
 	setUserAgent(&msc.Client)
