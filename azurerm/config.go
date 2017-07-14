@@ -85,6 +85,7 @@ type ArmClient struct {
 	eventHubConsumerGroupClient eventhub.ConsumerGroupsClient
 	eventHubNamespacesClient    eventhub.NamespacesClient
 
+	mysqlDatabasesClient mysql.DatabasesClient
 	mysqlServersClient mysql.ServersClient
 
 	providers           resources.ProvidersClient
@@ -294,6 +295,12 @@ func (c *Config) getArmClient() (*ArmClient, error) {
 	ehnc.Authorizer = auth
 	ehnc.Sender = autorest.CreateSender(withRequestLogging())
 	client.eventHubNamespacesClient = ehnc
+
+	mdc := mysql.NewDatabasesClientWithBaseURI(endpoint, c.SubscriptionID)
+	setUserAgent(&mdc.Client)
+	mdc.Authorizer = auth
+	mdc.Sender = autorest.CreateSender(withRequestLogging())
+	client.mysqlDatabasesClient = mdc
 
 	msc := mysql.NewServersClientWithBaseURI(endpoint, c.SubscriptionID)
 	setUserAgent(&msc.Client)
