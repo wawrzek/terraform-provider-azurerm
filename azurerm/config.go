@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"os"
 
 	"github.com/Azure/azure-sdk-for-go/arm/appinsights"
 	"github.com/Azure/azure-sdk-for-go/arm/cdn"
@@ -31,7 +32,11 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/hashicorp/terraform/terraform"
 	riviera "github.com/jen20/riviera/azure"
+	"github.com/mitchellh/go-homedir"
 )
+
+// this is hard-coded and used for Device Auth / SSO
+const azureADClientId = "48b6bf69-e0de-4055-a57d-279e372e8d94"
 
 // ArmClient contains the handles to all the specific Azure Resource Manager
 // resource classes' respective clients.
@@ -148,6 +153,52 @@ func setUserAgent(client *autorest.Client) {
 	client.UserAgent = fmt.Sprintf("HashiCorp-Terraform-v%s", version)
 }
 
+func (c *Config) getServerPrincipalToken(useDeviceAuth bool, oauthConfig adal.OAuthConfig, env azure.Environment) (*adal.ServicePrincipalToken, error) {
+	sender := autorest.CreateSender(withRequestLogging())
+	if useDeviceAuth {
+		tokenPath, err := homedir.Expand("~/.terraform.d/azurerm_device_auth")
+		if err != nil {
+			return nil, err
+		}
+		// if we have a previous token, load it up
+		token, err := adal.LoadToken(tokenPath)
+
+		if token == nil || token.IsExpired() {
+			deviceCode, err := adal.InitiateDeviceAuth(sender, oauthConfig, azureADClientId, env.ResourceManagerEndpoint)
+			if err != nil {
+				return nil, err
+			}
+
+			log.Printf(*deviceCode.Message)
+			os.Stdout.Write([]byte(*deviceCode.Message))
+
+			token, err = adal.WaitForUserCompletion(sender, deviceCode)
+			if err != nil {
+				return nil, err
+			}
+
+			err = adal.SaveToken(tokenPath, 0500, *token)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		spt, err := adal.NewServicePrincipalTokenFromManualToken(oauthConfig, azureADClientId, env.ResourceManagerEndpoint, *token)
+		if err != nil {
+			return nil, err
+		}
+
+		return spt, nil
+	}
+
+	spt, err := adal.NewServicePrincipalToken(oauthConfig, c.ClientID, c.ClientSecret, env.ResourceManagerEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	return spt, nil
+}
+
 // getArmClient is a helper method which returns a fully instantiated
 // *ArmClient based on the Config's current settings.
 func (c *Config) getArmClient() (*ArmClient, error) {
@@ -170,6 +221,7 @@ func (c *Config) getArmClient() (*ArmClient, error) {
 		environment:    env,
 	}
 
+	// TODO: update/remove Riviera so we can support Device Auth
 	rivieraClient, err := riviera.NewClient(&riviera.AzureResourceManagerCredentials{
 		ClientID:                c.ClientID,
 		ClientSecret:            c.ClientSecret,
@@ -193,7 +245,9 @@ func (c *Config) getArmClient() (*ArmClient, error) {
 		return nil, fmt.Errorf("Unable to configure OAuthConfig for tenant %s", c.TenantID)
 	}
 
-	spt, err := adal.NewServicePrincipalToken(*oauthConfig, c.ClientID, c.ClientSecret, env.ResourceManagerEndpoint)
+	// TODO: switch on Device Auth or Service Principal
+	useDeviceAuth := true
+	spt, err := c.getServerPrincipalToken(useDeviceAuth, *oauthConfig, env)
 	if err != nil {
 		return nil, err
 	}
