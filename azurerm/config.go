@@ -592,15 +592,6 @@ func (c *Config) getArmClient() (*ArmClient, error) {
 	sqlepc.Sender = autorest.CreateSender(withRequestLogging())
 	client.sqlElasticPoolsClient = sqlepc
 
-<<<<<<< HEAD
-=======
-	ac := web.NewAppsClientWithBaseURI(endpoint, c.SubscriptionID)
-	setUserAgent(&ac.Client)
-	ac.Authorizer = auth
-	ac.Sender = autorest.CreateSender(withRequestLogging())
-	client.appsClient = ac
-
->>>>>>> setting tags
 	sqlsrv := sql.NewServersClientWithBaseURI(endpoint, c.SubscriptionID)
 	setUserAgent(&sqlsrv.Client)
 	sqlsrv.Authorizer = auth
@@ -613,6 +604,12 @@ func (c *Config) getArmClient() (*ArmClient, error) {
 	aspc.Sender = autorest.CreateSender(withRequestLogging())
 	client.appServicePlansClient = aspc
 
+  ac := web.NewAppsClientWithBaseURI(endpoint, c.SubscriptionID)
+	setUserAgent(&ac.Client)
+	ac.Authorizer = auth
+	ac.Sender = autorest.CreateSender(withRequestLogging())
+	client.appsClient = ac
+
 	ai := appinsights.NewComponentsClientWithBaseURI(endpoint, c.SubscriptionID)
 	setUserAgent(&ai.Client)
 	ai.Authorizer = auth
@@ -624,12 +621,6 @@ func (c *Config) getArmClient() (*ArmClient, error) {
 	spc.Authorizer = graphAuth
 	spc.Sender = autorest.CreateSender(withRequestLogging())
 	client.servicePrincipalsClient = spc
-
-	ac := web.NewAppsClientWithBaseURI(endpoint, c.SubscriptionID)
-	setUserAgent(&ac.Client)
-	ac.Authorizer = auth
-	ac.Sender = autorest.CreateSender(withRequestLogging())
-	client.appsClient = ac
 
 	kvc := keyvault.NewVaultsClientWithBaseURI(endpoint, c.SubscriptionID)
 	setUserAgent(&kvc.Client)
